@@ -812,6 +812,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
   const floaters: Floater[] = []
   const FAN = [0, -1, 0.9] // lanes, so fast knocking fans out instead of piling up
   let fanIdx = 0
+  let leftLane = false // the peak knock's word floats left, clear of the mallet, for the card snapshot
   const motes: Mote[] = []
   const rings: Ring[] = []
 
@@ -918,7 +919,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
       }
     }
     // the share peak is the stick burning out; later milestones only refresh the card
-    if (stickOut) ev.onPeak('incense')
+    if (stickOut) {
+      leftLane = true
+      ev.onPeak('incense')
+    }
     else if (milestone) ev.onPeak('milestone')
 
     // mallet: (re)start the down-swing from wherever it is. The swing is short (33 ms,
@@ -958,7 +962,11 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
       const alive = floaters.length
       // fast knocking fans the texts out instead of stacking them on one line
       if (alive + k === 0) fanIdx = 0
-      const fan = FAN[fanIdx++ % FAN.length]
+      let fan = FAN[fanIdx++ % FAN.length]
+      if (leftLane && k === 0) {
+        fan = -1
+        leftLane = false
+      }
       floaters.push({
         text: it.text,
         x: L.fx,
