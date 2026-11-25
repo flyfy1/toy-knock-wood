@@ -4,6 +4,7 @@ import { applyMeta, locale, t } from './i18n'
 import { startAnalytics, track } from './analytics'
 import { parseWords, stats, syncWordsToUrl, wordsFromUrl } from './share'
 import { Hint } from './components/Hint'
+import { IconAuto, IconKnock, IconMallet } from './components/Icons'
 import { startGame, type GameApi } from './game'
 
 const AUTO_STEPS = [0, 1, 2] as const
@@ -95,7 +96,7 @@ export default function App() {
   }
 
   const pill =
-    'rounded-full border border-amber-100/20 bg-black/25 px-3.5 py-1.5 text-sm font-medium text-amber-50/85 backdrop-blur-md hover:bg-black/35 active:scale-95'
+    'inline-flex min-h-[44px] items-center gap-2 rounded-full border border-amber-100/20 bg-black/25 px-[14px] text-sm font-medium leading-none text-amber-50/85 backdrop-blur-md hover:bg-black/35 active:scale-95'
 
   return (
     <>
@@ -118,7 +119,7 @@ export default function App() {
         <div className="mt-0.5 text-xs tabular-nums opacity-60">{t('knock_today', { n: fmt.format(count.today) })}</div>
       </div>
       {toast && (
-        <div key={toast.id} className={`knock-toast pointer-events-none fixed inset-x-0 top-[9.6rem] z-10 px-6 text-center text-base ${locale === 'zh-CN' || locale === 'ja' ? '' : 'italic'}`} style={{ color: 'rgba(255,238,205,0.92)' }}>
+        <div key={toast.id} className={`knock-toast pointer-events-none fixed inset-x-0 top-[9.6rem] z-10 px-6 text-center text-base font-medium`} style={{ color: 'rgba(255,238,205,0.92)' }}>
           {toast.text}
         </div>
       )}
@@ -129,14 +130,16 @@ export default function App() {
           onClick={toggleBig}
           aria-label={big ? t('knock_small') : t('knock_big')}
           title={big ? t('knock_small') : t('knock_big')}
-          className={`fixed left-3 top-16 z-20 ${pill} !px-2.5 ${big ? 'border-amber-200/50 bg-amber-200/15' : ''}`}
+          className={`fixed left-3 top-16 z-20 ${pill} w-11 justify-center !px-0 ${big ? 'border-amber-200/50 bg-amber-200/15' : ''}`}
         >
-          🐟
+          <IconKnock />
         </button>
       )}
       <div className="fixed bottom-3 left-3 z-20 flex items-end gap-2 select-none" onPointerDown={(e) => e.stopPropagation()}>
         <button type="button" onClick={cycleAuto} className={`${pill} max-[400px]:!px-2.5 max-[400px]:!text-[13px] ${auto ? 'border-amber-200/50 bg-amber-200/15 text-amber-100' : ''}`}>
-          {auto ? `🤖 ${t('knock_auto_on', { r: auto })}` : `🤲 ${t('knock_auto_off')}`}
+          {/* narrow phones: the label is the joke, the icon gives way so the row fits beside Share and More */}
+          <span className="max-[430px]:hidden">{auto ? <IconAuto /> : <IconMallet />}</span>
+          {auto ? t('knock_auto_on', { r: auto }) : t('knock_auto_off')}
         </button>
       </div>
       <MoreMenu current="knock" />

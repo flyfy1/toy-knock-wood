@@ -5,6 +5,21 @@ import { track } from './analytics'
 import { knockVariants, locale, t } from './i18n'
 import { type Stage, clamp, easeOutBack, haptic, rand, runLoop, setupCanvas } from './engine/juice'
 
+// Dev only (frame sheets): ?seed=<n> makes every random choice repeatable.
+if (import.meta.env.DEV && new URLSearchParams(location.search).has('seed')) {
+  let a = Number(new URLSearchParams(location.search).get('seed')) >>> 0 || 1
+  Math.random = () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/** The mallet head rests on the fish this long after contact, so the eye sees the hit (2 frames at 60 fps). */
+const HOLD_MS = 28
+
 const FONT = locale === 'ja' ? 'system-ui, "Hiragino Sans", "Noto Sans CJK JP", sans-serif' : 'system-ui, "PingFang SC", "Hiragino Sans", "Noto Sans CJK SC", sans-serif'
 const TAU = Math.PI * 2
 
@@ -337,42 +352,53 @@ function almond(c: CanvasRenderingContext2D, w: number, h: number, dy = 0) {
 const STICK = 1.6
 const HEAD_R = 0.2
 
+/** Mallet sprites in one coordinate frame: `img` whole, plus `stick` (stick, binding, both shadows) and `head` (the padded ball alone) so the head can flatten on contact. */
 function bakeMallet(R: number, dpr: number) {
   const pad = 0.12 * R
   const W = (STICK + HEAD_R + 0.2) * R + 2 * pad
   const H = 2 * HEAD_R * R + 2 * pad + 0.1 * R
-  const img = makeCanvas(W * dpr, H * dpr)
-  const c = img.getContext('2d')!
-  c.scale(dpr, dpr)
   const px = pad + 0.14 * R // pivot
   const py = H / 2
   const hx = px + STICK * R // head centre
-  const th = 0.09 * R
+  const layer = (stick: boolean, head: boolean) => {
+    const img = makeCanvas(W * dpr, H * dpr)
+    const c = img.getContext('2d')!
+    c.scale(dpr, dpr)
+    paintMallet(c, R, dpr, px, py, hx, stick, head)
+    return img
+  }
+  return { img: layer(true, true), stick: layer(true, false), head: layer(false, true), px: px * dpr, py: py * dpr, dpr, face: (hx + HEAD_R * R * 1.08) * dpr }
+}
 
-  // soft drop shadow (baked once; never per frame)
+function paintMallet(c: CanvasRenderingContext2D, R: number, dpr: number, px: number, py: number, hx: number, stick: boolean, head: boolean) {
+  const th = 0.09 * R
+  // soft drop shadows (baked once; never per frame), each with the part that casts it
+  const standIns = () => {
+    if (stick) {
+      c.beginPath()
+      c.roundRect(px - 0.14 * R, py - th / 2, STICK * R, th, th / 2)
+      c.fill()
+    }
+    if (head) {
+      c.beginPath()
+      c.ellipse(hx, py, HEAD_R * R * 1.08, HEAD_R * R, 0, 0, TAU)
+      c.fill()
+    }
+  }
   c.save()
   c.shadowColor = 'rgba(10,3,0,0.55)'
   c.shadowBlur = 0.09 * R * dpr
   c.shadowOffsetX = 0.03 * R * dpr
   c.shadowOffsetY = 0.07 * R * dpr
   c.fillStyle = '#000'
-  c.beginPath()
-  c.roundRect(px - 0.14 * R, py - th / 2, STICK * R, th, th / 2)
-  c.fill()
-  c.beginPath()
-  c.ellipse(hx, py, HEAD_R * R * 1.08, HEAD_R * R, 0, 0, TAU)
-  c.fill()
+  standIns()
   c.restore()
   // erase the black stand-ins, keep only their shadows
   c.globalCompositeOperation = 'destination-out'
-  c.beginPath()
-  c.roundRect(px - 0.14 * R, py - th / 2, STICK * R, th, th / 2)
-  c.fill()
-  c.beginPath()
-  c.ellipse(hx, py, HEAD_R * R * 1.08, HEAD_R * R, 0, 0, TAU)
-  c.fill()
+  standIns()
   c.globalCompositeOperation = 'source-over'
 
+  if (stick) {
   // stick: turned wood, tapered slightly toward the head
   c.beginPath()
   c.moveTo(px - 0.14 * R, py - th * 0.56)
@@ -418,6 +444,8 @@ function bakeMallet(R: number, dpr: number) {
     c.lineTo(x + 0.012 * R, py + th * 0.6)
     c.stroke()
   }
+  }
+  if (!head) return
 
   // padded head: cloth-wrapped ball
   c.save()
@@ -439,12 +467,12 @@ function bakeMallet(R: number, dpr: number) {
     c.stroke()
   }
   // cloth weave speckle
+  const r = rng(11)
   for (let i = 0; i < 70; i++) {
     c.fillStyle = r() < 0.5 ? 'rgba(130,100,60,0.18)' : 'rgba(255,255,240,0.18)'
     c.fillRect(hx + (r() - 0.5) * 0.42 * R, py + (r() - 0.5) * 0.4 * R, 0.012 * R, 0.012 * R)
   }
   c.restore()
-  return { img, px: px * dpr, py: py * dpr, dpr }
 }
 
 // ---------- background + cushion (baked) ----------
@@ -637,11 +665,11 @@ function layout(s: Stage, big: boolean): Layout {
   const angRest = -0.9 // direction head → hand
   let headRest: [number, number] = [fx + 0.98 * fR, bodyCy + (BODY_TOP - 0.42) * fR]
   // keep the hand end on screen on narrow phones: slide the rest pose in, steepen the strike pose
-  const reach = (STICK + 0.1) * R
+  const reach = (STICK + 0.22) * R // to the drawn butt end (cap and rounded tip sit ~0.19R past the pivot)
   const handX = headRest[0] + Math.cos(angRest) * reach
-  if (handX > s.w - 6) headRest = [headRest[0] - (handX - s.w + 6), headRest[1]]
+  if (handX > s.w - 16) headRest = [headRest[0] - (handX - s.w + 16), headRest[1]]
   let angStrike = -0.62
-  const room = s.w - 6 - headStrike[0]
+  const room = s.w - 16 - headStrike[0]
   if (Math.cos(angStrike) * reach > room) angStrike = -Math.acos(clamp(room / reach, 0.2, 1))
   return { R, fR, fx, cy, baseY, headRest, headStrike, angRest, angStrike, contact }
 }
@@ -871,7 +899,8 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     })
     while (floaters.length > 24) floaters.shift()
     u = 1
-    swing = { from: 1, t0: tNow, dur: 220, phase: 'up' }
+    // hold the contact pose (the padded head flattens on the fish), then the 220 ms up-swing
+    swing = { from: 1, t0: tNow + HOLD_MS, dur: 220, phase: 'up' }
   }
 
   // ambient dust in the spotlight
@@ -926,7 +955,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     const tNow = now()
     const dt = frozen !== null ? 0 : Math.min(0.033, (tNow - lastT) / 1000)
     lastT = tNow
+    frame(tNow, dt)
+  })
 
+  function frame(tNow: number, dt: number) {
     // auto knock (paused with the tab since the loop is rAF)
     if (autoRate > 0 && frozen === null) {
       if (tNow - autoNext > 1000) autoNext = tNow
@@ -968,7 +1000,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     dimple = Math.max(0, sq)
 
     draw(tNow)
-  })
+  }
 
   function draw(tNow: number) {
     const { ctx, dpr } = stage
@@ -1066,7 +1098,19 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     ctx.translate(mp.hand[0], mp.hand[1])
     ctx.rotate(mp.ang + Math.PI) // baked along +x from the hand to the head
     const mk = 1 / mallet.dpr
-    ctx.drawImage(mallet.img, -mallet.px * mk, -mallet.py * mk, mallet.img.width * mk, mallet.img.height * mk)
+    // padded head: flattened against the fish while it rests there, springs back over the first 60 ms of the up-swing
+    let squash = 0
+    if (swing && swing.phase === 'up') squash = tNow < swing.t0 ? 1 : 1 - clamp((tNow - swing.t0) / 60, 0, 1)
+    const mw = mallet.img.width * mk
+    const mh = mallet.img.height * mk
+    if (squash <= 0) ctx.drawImage(mallet.img, -mallet.px * mk, -mallet.py * mk, mw, mh)
+    else {
+      ctx.drawImage(mallet.stick, -mallet.px * mk, -mallet.py * mk, mw, mh)
+      // the ball flattens against the fish: anchored at its striking face, shorter along the stick, wider across
+      ctx.translate((mallet.face - mallet.px) * mk, 0)
+      ctx.scale(1 - 0.1 * squash, 1 + 0.06 * squash)
+      ctx.drawImage(mallet.head, -mallet.face * mk, -mallet.py * mk, mw, mh)
+    }
     ctx.restore()
     drawTassel(ctx)
 
@@ -1196,7 +1240,23 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
   }
 
   if (import.meta.env.DEV) {
+    const advance = (ms: number) => {
+      for (let left = ms; left > 1e-6; left -= 1000 / 60) {
+        const step = Math.min(1000 / 60, left)
+        frozen = (frozen ?? performance.now()) + step
+        frame(frozen, step / 1000)
+      }
+    }
+    ;(window as unknown as Record<string, unknown>).__toy = {
+      freeze: () => (frozen = performance.now()),
+      advance,
+      hit: () => {
+        knock()
+        draw(now())
+      },
+    }
     ;(window as unknown as Record<string, unknown>).__knock = {
+      advance,
       freeze: () => (frozen = performance.now()),
       unfreeze: () => {
         frozen = null
