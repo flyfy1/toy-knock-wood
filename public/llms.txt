@@ -35,6 +35,9 @@ Yes. Type your own lines in the box at the top, separated by commas, for example
 **Is there an auto-knock mode?**
 Yes. Turn on auto-knock for one or two taps per second. The toy will point out that outsourced merit may not count.
 
+**What is the incense stick for?**
+A stick of incense burns in a small bronze burner beside the fish. "One stick of incense" (一炷香) is an old Chinese measure of time; here one stick lasts 108 knocks done by hand. Outsourced knocks do not burn it. When it burns out, its red foot stays in the ash and a new stick is lit.
+
 **Is Knock on Wood free?**
 Yes. It is free, with no sign-up, no download and no ads. It runs in any modern browser on phones, tablets and computers.
 

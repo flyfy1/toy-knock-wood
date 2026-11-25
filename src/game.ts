@@ -4,6 +4,7 @@ import { audio } from './engine/AudioEngine'
 import { track } from './analytics'
 import { knockVariants, locale, t } from './i18n'
 import { type Stage, clamp, easeOutBack, haptic, rand, runLoop, setupCanvas } from './engine/juice'
+import { STICK_KNOCKS, bakeBurner, makeIncense } from './incense'
 
 // Dev only (frame sheets): ?seed=<n> makes every random choice repeatable.
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('seed')) {
@@ -29,6 +30,8 @@ const LS_TOTAL = 'knock.total'
 const LS_DAY = 'knock.day'
 const LS_TODAY = 'knock.today'
 const LS_BIG = 'knock.big'
+const LS_STICK = 'knock.stick' // knocks burned on the current stick of incense (0..107)
+const LS_STICKS = 'knock.sticks' // sticks burned out on this device
 const todayKey = () => {
   const d = new Date()
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
@@ -624,6 +627,7 @@ function bakeBackground(s: Stage, L: Layout) {
   c.beginPath()
   c.ellipse(cx, cy + 1.2, rx, ry, 0, 0.1, Math.PI - 0.1)
   c.stroke()
+  bakeBurner(c, L.burner[0], L.burner[1], R)
   return img
 }
 
@@ -640,6 +644,7 @@ interface Layout {
   angRest: number // stick direction head → hand
   angStrike: number
   contact: [number, number] // where the mallet head meets the fish
+  burner: [number, number] // centre of the incense burner's ash surface
 }
 
 function layout(s: Stage, big: boolean): Layout {
@@ -671,7 +676,10 @@ function layout(s: Stage, big: boolean): Layout {
   let angStrike = -0.62
   const room = s.w - 16 - headStrike[0]
   if (Math.cos(angStrike) * reach > room) angStrike = -Math.acos(clamp(room / reach, 0.2, 1))
-  return { R, fR, fx, cy, baseY, headRest, headStrike, angRest, angStrike, contact }
+  // incense burner: beside the cushion on wide screens; on portrait phones further back, past the cushion's
+  // left edge, clear of the big fish
+  const burner: [number, number] = s.h > s.w * 1.15 ? [fx - 1.56 * R, cy - 0.3 * R] : [fx - 1.9 * R, cy + 0.12 * R]
+  return { R, fR, fx, cy, baseY, headRest, headStrike, angRest, angStrike, contact, burner }
 }
 
 // ---------- live effects ----------
@@ -727,6 +735,13 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
   let wordIdx = 0
   const variants = knockVariants()
 
+  // one stick of incense: a new device starts in step with the 108 milestone
+  const stickQ = import.meta.env.DEV ? new URLSearchParams(location.search).get('stick') : null
+  const incense = makeIncense({
+    burned: stickQ !== null ? clamp(Number(stickQ) | 0, 0, STICK_KNOCKS - 1) : lsGet(LS_STICK) !== null ? clamp(Number(lsGet(LS_STICK)) | 0, 0, STICK_KNOCKS - 1) : total % STICK_KNOCKS,
+    sticks: Number(lsGet(LS_STICKS)) || 0,
+  })
+
   let L: Layout
   let fish: Sprite
   let mallet: ReturnType<typeof bakeMallet>
@@ -736,8 +751,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     fish = bakeFish(L.fR, s.dpr)
     mallet = bakeMallet(L.R, s.dpr)
     bg = bakeBackground(s, L)
+    incense.layout(L.R, L.burner[0], L.burner[1])
   }
   const { stage, dispose: disposeCanvas } = setupCanvas(canvas, relayout)
+  incense.prewarm()
 
   // time: real clock, or frozen for screenshots (dev only)
   let frozen: number | null = null
@@ -746,7 +763,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
   // mallet pose: u = 0 at rest, 1 at contact
   let u = 0
   let swing: { from: number; t0: number; dur: number; phase: 'down' | 'up' } | null = null
-  let pendingTexts: { text: string; special: boolean; v: number }[] = []
+  let pendingTexts: { text: string; special: boolean; v: number; auto: boolean }[] = []
   // tassel pendulum (hangs from the hand end)
   let tassel = 0
   let tasselV = 0
@@ -838,14 +855,28 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
         }
       } else fastSince = 0
     }
-    pendingTexts.push({ ...txt, v })
+    pendingTexts.push({ ...txt, v, auto })
 
+    // the stick only burns for knocks done by hand
+    const stickOut = incense.knock(!auto, tNow)
+    lsSet(LS_STICK, String(stickOut ? 0 : incense.burned))
+    let milestone = false
     for (const [n, key] of MILESTONES) {
       if (before < n && total >= n) {
+        milestone = true
         ev.onToast(t(key))
         audio.bell(n >= 1000 ? 660 : 784)
         track('knock_milestone', { n })
         if (n === 108) ev.onBigUnlocked()
+      }
+    }
+    if (stickOut) {
+      lsSet(LS_STICKS, String(incense.sticks))
+      track('incense_out', { sticks: incense.sticks })
+      // when it lands on a milestone (the first stick always does, at 108) the milestone speaks alone
+      if (!milestone) {
+        ev.onToast(t('knock_incense_out'))
+        audio.bell(784, 0.08)
       }
     }
 
@@ -858,7 +889,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
 
   function contact(tNow: number) {
     const R = L.fR
-    const items = pendingTexts.length ? pendingTexts : [{ text: t('knock_default'), special: false, v: 0.85 }]
+    const items = pendingTexts.length ? pendingTexts : [{ text: t('knock_default'), special: false, v: 0.85, auto: false }]
     pendingTexts = []
     const v = items[items.length - 1].v
     // squash spring kick (accumulates a little under fast knocking)
@@ -868,6 +899,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     rings.push({ t0: tNow })
     if (rings.length > 2) rings.shift()
     const [cx, cy] = L.contact
+    incense.contact(cx, cy, v)
     for (let i = 0; i < 6; i++) {
       motes.push({
         x: cx + rand(-0.06, 0.06) * R,
@@ -903,12 +935,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     swing = { from: 1, t0: tNow + HOLD_MS, dur: 220, phase: 'up' }
   }
 
-  // ambient dust in the spotlight
-  for (let i = 0; i < 18; i++) spawnAmbient(true)
+  // ambient dust in the spotlight (none on the far left: the incense smoke has that air)
+  for (let i = 0; i < 12; i++) spawnAmbient(true)
   function spawnAmbient(anywhere: boolean) {
     const R = L.R
     motes.push({
-      x: L.fx + rand(-1.6, 1.6) * R,
+      x: L.fx + rand(-0.9, 1.6) * R,
       y: anywhere ? L.cy - rand(0.4, 3.2) * R : L.cy - rand(0.4, 1.2) * R,
       vx: rand(-0.04, 0.04) * R,
       vy: rand(-0.09, -0.03) * R,
@@ -951,9 +983,24 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
 
   // ---------- loop ----------
   let lastT = now()
+  // slow device: if frames run long for 1.5 s, the smoke drops to its lite form (it is the costliest layer)
+  const loopT0 = performance.now()
+  let frameEma = 16.7
+  let slowSince = 0
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('lite')) incense.setLite(true)
   const stopLoop = runLoop(() => {
     const tNow = now()
     const dt = frozen !== null ? 0 : Math.min(0.033, (tNow - lastT) / 1000)
+    if (frozen === null && slowSince >= 0 && tNow - loopT0 > 2000) {
+      frameEma += (Math.min(50, tNow - lastT) - frameEma) * 0.05
+      if (frameEma > 18.5) {
+        if (!slowSince) slowSince = tNow
+        else if (tNow - slowSince > 1500) {
+          incense.setLite(true)
+          slowSince = -1
+        }
+      } else slowSince = 0
+    }
     lastT = tNow
     frame(tNow, dt)
   })
@@ -998,6 +1045,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     }
     lastU = u
     dimple = Math.max(0, sq)
+    incense.step(dt)
 
     draw(tNow)
   }
@@ -1008,6 +1056,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     ctx.drawImage(bg, 0, 0)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const R = L.fR
+
+    // incense: smoke behind, then the stick and its ember
+    incense.drawSmoke(ctx)
+    incense.draw(ctx)
 
     // dimple + contact shadow on the cushion
     const dip = dimple * 0.04 * L.R
@@ -1227,6 +1279,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     setAuto(rate) {
       autoRate = rate
       autoNext = now() + 150
+      incense.setAuto(rate > 0)
       if (rate > 0) audio.unlock()
     },
     setBig(b) {
@@ -1267,6 +1320,12 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
         ev.onCount(total, today)
       },
       api,
+      incense,
+      layout: () => L,
+      stick: (n: number) => {
+        incense.set(n)
+        lsSet(LS_STICK, String(incense.burned))
+      },
       sample: (n: number) => Array.from({ length: n }, () => nextText(false).text),
     }
   }
