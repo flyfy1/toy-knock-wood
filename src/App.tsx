@@ -135,7 +135,7 @@ export default function App() {
         </button>
       )}
       <div className="fixed bottom-3 left-3 z-20 flex items-end gap-2 select-none" onPointerDown={(e) => e.stopPropagation()}>
-        <button type="button" onClick={cycleAuto} className={`${pill} ${auto ? 'border-amber-200/50 bg-amber-200/15 text-amber-100' : ''}`}>
+        <button type="button" onClick={cycleAuto} className={`${pill} max-[400px]:!px-2.5 max-[400px]:!text-[13px] ${auto ? 'border-amber-200/50 bg-amber-200/15 text-amber-100' : ''}`}>
           {auto ? `🤖 ${t('knock_auto_on', { r: auto })}` : `🤲 ${t('knock_auto_off')}`}
         </button>
       </div>

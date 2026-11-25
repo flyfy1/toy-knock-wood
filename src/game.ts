@@ -619,7 +619,12 @@ function layout(s: Stage, big: boolean): Layout {
   const R = Math.min(s.w * 0.24, s.h * 0.19)
   const fR = R * (big ? 1.16 : 1)
   const fx = s.w / 2
-  const cy = Math.min(s.h * 0.6 + 0.75 * R, s.h - R - 40)
+  // portrait phones: centre the fish body at 53% height (the old rule left a big empty band under the counter)
+  const fishMid = (BODY_TOP + BODY_BOTTOM) / 2
+  const cy =
+    s.h > s.w * 1.15
+      ? Math.min(s.h * 0.53 - 0.05 * R + (BODY_BOTTOM - fishMid) * fR, s.h - R - 40)
+      : Math.min(s.h * 0.6 + 0.75 * R, s.h - R - 40)
   const baseY = cy + 0.05 * R
   // contact point on the upper-right shoulder of the body
   const th = -0.95

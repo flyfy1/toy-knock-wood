@@ -10,7 +10,7 @@ export const LOCALES = [
 ] as const
 
 export type Locale = (typeof LOCALES)[number]['code']
-export type ToyId = 'charge' | 'void' | 'smash' | 'pop' | 'knock'
+export type ToyId = 'charge' | 'void' | 'smash' | 'pop' | 'knock' // | 'purr' (Lap Cat, purr.integ.life): add once it is live
 
 const en = {
   name_charge: 'Charge Burst',
