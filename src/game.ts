@@ -740,7 +740,8 @@ export interface GameEvents {
   onPeak(kind: 'incense' | 'milestone'): void
 }
 
-export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWords: string[] = []): GameApi {
+/** `hide`: a sender's words on a recipient's screen; the card's picture leaves them off (the screen does not). */
+export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWords: string[] = [], hide: string[] = []): GameApi {
   // ledger
   let total = Number(lsGet(LS_TOTAL)) || 0
   let today = lsGet(LS_DAY) === todayKey() ? Number(lsGet(LS_TODAY)) || 0 : 0
@@ -1250,6 +1251,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
         floaters.splice(i, 1)
         continue
       }
+      if (hiding && hide.includes(f.text)) continue
       const p = age / dur
       const e = 1 - Math.pow(1 - p, 3)
       const fadeFrom = dur * (2 / 3)
@@ -1272,9 +1274,17 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     if (snapAt && tNow >= snapAt.t) {
       const cb = snapAt.cb
       snapAt = null
-      cb(crop())
+      if (!floaters.some((f) => hide.includes(f.text))) return cb(crop())
+      // draw the frame once more without the sender's words for the picture, then as shown
+      hiding = true
+      draw(tNow)
+      const c = crop()
+      hiding = false
+      draw(tNow)
+      cb(c)
     }
   }
+  let hiding = false
 
   /** The fish, mallet and floating text, cut from the canvas (about 7:5; taller on a narrow phone, the card picks its window). */
   function crop(): HTMLCanvasElement | null {

@@ -2,6 +2,7 @@
 // The text every toy shares (names for the More menu, Share, About) lives in i18n.ts.
 
 const en = {
+  knock_reply_ph: "A word you would like knocked off",
   knock_tag: "Someone lit this for you",
   knock_tag_words: "Someone lit this for you. Every knock: {w}",
   desc_knock: "A lacquered wooden fish and a mallet. Every tap is a warm wooden tok and +1 merit, or +1 of whatever you type. Counts are kept on your device. A tiny calming toy, no sign-up.",
@@ -26,6 +27,7 @@ const en = {
 }
 
 const zhCN: typeof en = {
+  knock_reply_ph: "写一个你想敲掉的词",
   knock_tag: "有人给你点了一炷香",
   knock_tag_words: "有人给你点了一炷香 · 每敲一下：{w}",
   desc_knock: "一只上了漆的木鱼，一根木槌。每敲一下，一声温润的“笃”，功德 +1，或者 +1 你自己写的任何东西。计数只存在你自己的设备上。打开即玩的解压小玩具。",
@@ -50,6 +52,7 @@ const zhCN: typeof en = {
 }
 
 const es: typeof en = {
+  knock_reply_ph: "Una palabra que quieras quitarte de encima",
   knock_tag: "Alguien te ha encendido esto",
   knock_tag_words: "Alguien te ha encendido esto. Cada golpe: {w}",
   desc_knock: "Un pez de madera lacada y una maza. Cada toque es un tok cálido de madera y +1 de suerte, o +1 de lo que escribas. El contador se guarda en tu dispositivo. Un juguete relajante, sin registro.",
@@ -74,6 +77,7 @@ const es: typeof en = {
 }
 
 const fr: typeof en = {
+  knock_reply_ph: "Un mot dont vous voulez être débarrassé",
   knock_tag: "Quelqu’un l’a allumé pour vous",
   knock_tag_words: "Quelqu’un l’a allumé pour vous. Chaque coup : {w}",
   desc_knock: "Un poisson en bois laqué et un maillet. Chaque tap est un tok de bois tout doux et +1 de chance, ou +1 de ce que tu écris. Le compteur reste sur ton appareil. Un petit jouet apaisant, sans inscription.",
@@ -98,6 +102,7 @@ const fr: typeof en = {
 }
 
 const ja: typeof en = {
+  knock_reply_ph: "叩いて消したい言葉をひとつ",
   knock_tag: "あなたのために線香が一本",
   knock_tag_words: "あなたのために線香が一本 · 一打ちごとに：{w}",
   desc_knock: "漆塗りの木魚とバチ。タップするたびに、あたたかい木の音「ぽく」と功徳 +1。好きな言葉の +1 にもできます。回数は端末にだけ保存。登録不要の癒やしおもちゃ。",

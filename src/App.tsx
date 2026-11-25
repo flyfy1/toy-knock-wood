@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MoreMenu } from './components/MoreMenu'
 import { applyMeta, locale, t } from './i18n'
 import { startAnalytics, track } from './analytics'
-import { landing, live, parseWords, sharePeak, stats, store, syncWordsToUrl, trackLanding, wordsFromUrl } from './share'
+import { landing, live, openSheet, parseWords, sharePeak, stats, store, syncWordsToUrl, trackLanding, wordsFromUrl } from './share'
 import { Hint } from './components/Hint'
 import { Tag } from './components/Tag'
 import { IconAuto, IconKnock, IconMallet } from './components/Icons'
@@ -27,9 +27,14 @@ export default function App() {
   const [auto, setAuto] = useState(0)
   const [bigUnlocked, setBigUnlocked] = useState(false)
   const [big, setBig] = useState(false)
+  // a recipient answering: the box opens empty, with its own placeholder; done typing, the sheet comes back
+  const box = useRef<HTMLInputElement>(null)
+  const [ph, setPh] = useState('')
 
   useEffect(() => {
     applyMeta('knock')
+    // a link with something in it: the title (what WeChat shows when it is forwarded) says so
+    if (landing.recipient) document.title = t('knock_tag')
     startAnalytics('knock')
     stats.words = initial
     trackLanding({ words: initial.length })
@@ -74,6 +79,7 @@ export default function App() {
         },
       },
       initial,
+      landing.recipient ? initial : [],
     )
     api.current = g
     live.snap = () => g.crop()
@@ -97,6 +103,19 @@ export default function App() {
     if (words.length) gaTimer.current = window.setTimeout(() => track('custom_text_set', { count: words.length }), 1500)
   }
 
+  live.reply = () => {
+    onText('')
+    setPh(t('knock_reply_ph'))
+    box.current?.focus()
+  }
+  const sendReply = () => {
+    if (!ph || !parseWords(text).length) return
+    setPh('')
+    window.clearTimeout(urlTimer.current)
+    syncWordsToUrl(parseWords(text))
+    openSheet('reply')
+  }
+
   const cycleAuto = () => {
     const next = AUTO_STEPS[(AUTO_STEPS.indexOf(auto as 0 | 1 | 2) + 1) % AUTO_STEPS.length]
     setAuto(next)
@@ -118,13 +137,15 @@ export default function App() {
     <>
       <canvas ref={ref} />
       <input
+        ref={box}
         value={text}
         maxLength={140}
-        placeholder={t('knock_placeholder')}
+        placeholder={ph || t('knock_placeholder')}
         enterKeyHint="done"
         onPointerDown={(e) => e.stopPropagation()}
         onChange={(e) => onText(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        onBlur={sendReply}
         className="fixed left-1/2 top-3 z-20 w-80 max-w-[86vw] -translate-x-1/2 rounded-full border border-amber-100/20 bg-black/20 px-4 py-1.5 text-center text-base text-amber-50 placeholder-amber-50/45 outline-none backdrop-blur-md focus:border-amber-100/40 focus:bg-black/30"
       />
       <div className="pointer-events-none fixed inset-x-0 top-16 z-10 select-none text-center" style={{ color: 'rgba(246,217,139,0.8)' }}>
