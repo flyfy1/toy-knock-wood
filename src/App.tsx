@@ -1,0 +1,145 @@
+import { useEffect, useRef, useState } from 'react'
+import { MoreMenu } from './components/MoreMenu'
+import { applyMeta, locale, t } from './i18n'
+import { startAnalytics, track } from './analytics'
+import { parseWords, stats, syncWordsToUrl, wordsFromUrl } from './share'
+import { Hint } from './components/Hint'
+import { startGame, type GameApi } from './game'
+
+const AUTO_STEPS = [0, 1, 2] as const
+const fmt = new Intl.NumberFormat(locale)
+
+export default function App() {
+  const ref = useRef<HTMLCanvasElement>(null)
+  const api = useRef<GameApi | null>(null)
+  const urlTimer = useRef<number | undefined>(undefined)
+  const gaTimer = useRef<number | undefined>(undefined)
+  const toastTimer = useRef<number | undefined>(undefined)
+  const [touched, setTouched] = useState(false)
+  // Words from a shared link (?w=KPI -1,老板 -1) pre-fill the box and the floating text.
+  const [initial] = useState(() => wordsFromUrl())
+  const [text, setText] = useState(() => initial.join(', '))
+  const [count, setCount] = useState({ total: 0, today: 0 })
+  const [bump, setBump] = useState(0)
+  const [toast, setToast] = useState<{ text: string; id: number } | null>(null)
+  const [auto, setAuto] = useState(0)
+  const [bigUnlocked, setBigUnlocked] = useState(false)
+  const [big, setBig] = useState(false)
+
+  useEffect(() => {
+    applyMeta('knock')
+    startAnalytics('knock')
+    stats.words = initial
+    if (initial.length) track('shared_words_open', { words: initial.length })
+    const g = startGame(
+      ref.current!,
+      {
+        onFirst() {
+          setTouched(true)
+          track('play_start')
+        },
+        onCount(total, today) {
+          stats.n = total
+          setCount({ total, today })
+          setBump((b) => b + 1)
+          if (total >= 108) setBigUnlocked(true)
+        },
+        onToast(msg) {
+          setToast({ text: msg, id: Date.now() })
+          window.clearTimeout(toastTimer.current)
+          toastTimer.current = window.setTimeout(() => setToast(null), 3200)
+        },
+        onBigUnlocked() {
+          setBigUnlocked(true)
+          window.setTimeout(() => {
+            setToast({ text: t('knock_big_unlock'), id: Date.now() })
+            window.clearTimeout(toastTimer.current)
+            toastTimer.current = window.setTimeout(() => setToast(null), 3200)
+          }, 3300)
+        },
+      },
+      initial,
+    )
+    api.current = g
+    try {
+      setBig(localStorage.getItem('knock.big') === '1')
+    } catch {
+      /* ignore */
+    }
+    return () => g.dispose()
+  }, [initial])
+
+  const onText = (value: string) => {
+    setText(value)
+    const words = parseWords(value)
+    stats.words = words
+    api.current?.setWords(words)
+    window.clearTimeout(urlTimer.current)
+    urlTimer.current = window.setTimeout(() => syncWordsToUrl(words), 300)
+    window.clearTimeout(gaTimer.current)
+    if (words.length) gaTimer.current = window.setTimeout(() => track('custom_text_set', { count: words.length }), 1500)
+  }
+
+  const cycleAuto = () => {
+    const next = AUTO_STEPS[(AUTO_STEPS.indexOf(auto as 0 | 1 | 2) + 1) % AUTO_STEPS.length]
+    setAuto(next)
+    api.current?.setAuto(next)
+    if (next > 0) track('auto_on', { rate: next })
+    else track('auto_off')
+  }
+
+  const toggleBig = () => {
+    const b = !big
+    setBig(b)
+    api.current?.setBig(b)
+  }
+
+  const pill =
+    'rounded-full border border-amber-100/20 bg-black/25 px-3.5 py-1.5 text-sm font-medium text-amber-50/85 backdrop-blur-md hover:bg-black/35 active:scale-95'
+
+  return (
+    <>
+      <canvas ref={ref} />
+      <input
+        value={text}
+        maxLength={140}
+        placeholder={t('knock_placeholder')}
+        enterKeyHint="done"
+        onPointerDown={(e) => e.stopPropagation()}
+        onChange={(e) => onText(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        className="fixed left-1/2 top-3 z-20 w-80 max-w-[86vw] -translate-x-1/2 rounded-full border border-amber-100/20 bg-black/20 px-4 py-1.5 text-center text-base text-amber-50 placeholder-amber-50/45 outline-none backdrop-blur-md focus:border-amber-100/40 focus:bg-black/30"
+      />
+      <div className="pointer-events-none fixed inset-x-0 top-16 z-10 select-none text-center" style={{ color: 'rgba(246,217,139,0.8)' }}>
+        <div className="text-[13px] font-semibold uppercase tracking-[0.3em] opacity-70">{t('knock_label')}</div>
+        <div key={bump % 2} className="knock-bump text-4xl font-semibold tabular-nums leading-tight">
+          {fmt.format(count.total)}
+        </div>
+        <div className="mt-0.5 text-xs tabular-nums opacity-60">{t('knock_today', { n: fmt.format(count.today) })}</div>
+      </div>
+      {toast && (
+        <div key={toast.id} className={`knock-toast pointer-events-none fixed inset-x-0 top-[9.6rem] z-10 px-6 text-center text-base ${locale === 'zh-CN' || locale === 'ja' ? '' : 'italic'}`} style={{ color: 'rgba(255,238,205,0.92)' }}>
+          {toast.text}
+        </div>
+      )}
+      <Hint text={t('hint_knock')} hidden={touched} />
+      {bigUnlocked && (
+        <button
+          type="button"
+          onClick={toggleBig}
+          aria-label={big ? t('knock_small') : t('knock_big')}
+          title={big ? t('knock_small') : t('knock_big')}
+          className={`fixed left-3 top-16 z-20 ${pill} !px-2.5 ${big ? 'border-amber-200/50 bg-amber-200/15' : ''}`}
+        >
+          🐟
+        </button>
+      )}
+      <div className="fixed bottom-3 left-3 z-20 flex items-end gap-2 select-none" onPointerDown={(e) => e.stopPropagation()}>
+        <button type="button" onClick={cycleAuto} className={`${pill} ${auto ? 'border-amber-200/50 bg-amber-200/15 text-amber-100' : ''}`}>
+          {auto ? `🤖 ${t('knock_auto_on', { r: auto })}` : `🤲 ${t('knock_auto_off')}`}
+        </button>
+      </div>
+      <MoreMenu current="knock" />
+    </>
+  )
+}
