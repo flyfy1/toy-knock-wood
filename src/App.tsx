@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { MoreMenu } from './components/MoreMenu'
 import { applyMeta, locale, t } from './i18n'
 import { startAnalytics, track } from './analytics'
-import { parseWords, stats, syncWordsToUrl, wordsFromUrl } from './share'
+import { landing, live, parseWords, sharePeak, stats, store, syncWordsToUrl, trackLanding, wordsFromUrl } from './share'
 import { Hint } from './components/Hint'
+import { Tag } from './components/Tag'
 import { IconAuto, IconKnock, IconMallet } from './components/Icons'
 import { startGame, type GameApi } from './game'
 
@@ -31,7 +32,10 @@ export default function App() {
     applyMeta('knock')
     startAnalytics('knock')
     stats.words = initial
-    if (initial.length) track('shared_words_open', { words: initial.length })
+    trackLanding({ words: initial.length })
+    let last = -1
+    let wordKnocks = 0
+    const data = () => ({ ...g.ledger(), wordKnocks })
     const g = startGame(
       ref.current!,
       {
@@ -40,6 +44,8 @@ export default function App() {
           track('play_start')
         },
         onCount(total, today) {
+          if (last >= 0 && total > last && stats.words?.length) wordKnocks++
+          last = total
           stats.n = total
           setCount({ total, today })
           setBump((b) => b + 1)
@@ -58,10 +64,20 @@ export default function App() {
             toastTimer.current = window.setTimeout(() => setToast(null), 3200)
           }, 3300)
         },
+        onPeak(kind) {
+          // the merit statement: offered when a stick burns out; later milestones only refresh it
+          if (kind === 'milestone') {
+            if (store.peak) sharePeak('knock', { snap: store.peak.snap, data: data() }, true)
+            return
+          }
+          g.snapSoon((snap) => sharePeak('knock', { snap, data: data() }))
+        },
       },
       initial,
     )
     api.current = g
+    live.snap = () => g.crop()
+    live.data = data
     try {
       setBig(localStorage.getItem('knock.big') === '1')
     } catch {
@@ -124,6 +140,13 @@ export default function App() {
         </div>
       )}
       <Hint text={t('hint_knock')} hidden={touched} />
+      {landing.recipient && (
+        <Tag
+          text={initial.length ? t('knock_tag_words', { w: initial.join(locale === 'zh-CN' || locale === 'ja' ? '，' : ', ') }) : t('knock_tag')}
+          className="top-[9.4rem]"
+          paper="bg-[#8E1F2B] text-[#F6D98B] font-medium"
+        />
+      )}
       {bigUnlocked && (
         <button
           type="button"

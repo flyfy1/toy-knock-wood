@@ -2,7 +2,7 @@
 // Cozy rules: springs, soft shadows, small sounds. No shake / flash / hit-stop / additive particles.
 import { audio } from './engine/AudioEngine'
 import { track } from './analytics'
-import { knockVariants, locale, t } from './i18n'
+import { list, locale, t } from './i18n'
 import { type Stage, clamp, easeOutBack, haptic, rand, runLoop, setupCanvas } from './engine/juice'
 import { STICK_KNOCKS, bakeBurner, makeIncense } from './incense'
 
@@ -32,6 +32,7 @@ const LS_TODAY = 'knock.today'
 const LS_BIG = 'knock.big'
 const LS_STICK = 'knock.stick' // knocks burned on the current stick of incense (0..107)
 const LS_STICKS = 'knock.sticks' // sticks burned out on this device
+const LS_DAYLOG = 'knock.daylog' // today's sticks, outsourced knocks and too-fast warnings, for the merit statement
 const todayKey = () => {
   const d = new Date()
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
@@ -708,8 +709,22 @@ interface Ring {
   t0: number
 }
 
+/** Today's numbers for the merit statement (all counts, no text). */
+export interface Ledger {
+  today: number
+  sticks: number
+  auto: number
+  fast: number
+}
+
 export interface GameApi {
   dispose(): void
+  /** today's numbers */
+  ledger(): Ledger
+  /** a crop around the fish, as the canvas shows it right now */
+  crop(): HTMLCanvasElement | null
+  /** a crop taken in a frame `delay` ms from now (the floating text has just popped above the fish) */
+  snapSoon(cb: (c: HTMLCanvasElement | null) => void, delay?: number): void
   setWords(words: string[]): void
   setAuto(rate: number): void
   setBig(big: boolean): void
@@ -721,6 +736,8 @@ export interface GameEvents {
   onCount(total: number, today: number): void
   onToast(text: string): void
   onBigUnlocked(): void
+  /** the stick of incense burned out (the share peak), or a later milestone */
+  onPeak(kind: 'incense' | 'milestone'): void
 }
 
 export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWords: string[] = []): GameApi {
@@ -733,7 +750,23 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
 
   let words = initialWords
   let wordIdx = 0
-  const variants = knockVariants()
+  const variants = list('knock_variants')
+
+  // today's sticks / outsourced knocks / too-fast warnings (device only, reset each day)
+  const day = (() => {
+    try {
+      const d = JSON.parse(lsGet(LS_DAYLOG) || '{}')
+      if (d.d === todayKey()) return { d: d.d as string, s: Number(d.s) || 0, a: Number(d.a) || 0, f: Number(d.f) || 0 }
+    } catch {
+      /* fresh */
+    }
+    return { d: todayKey(), s: 0, a: 0, f: 0 }
+  })()
+  const dayBump = (k: 's' | 'a' | 'f') => {
+    if (day.d !== todayKey()) Object.assign(day, { d: todayKey(), s: 0, a: 0, f: 0 })
+    day[k]++
+    lsSet(LS_DAYLOG, JSON.stringify(day))
+  }
 
   // one stick of incense: a new device starts in step with the 108 milestone
   const stickQ = import.meta.env.DEV ? new URLSearchParams(location.search).get('stick') : null
@@ -833,7 +866,10 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     if (lsGet(LS_DAY) !== todayKey()) today = 0
     today++
     session++
-    if (auto) autoCount++
+    if (auto) {
+      autoCount++
+      dayBump('a')
+    }
     save()
     ev.onCount(total, today)
 
@@ -851,6 +887,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
           glanceUntil = tNow + 1600
           fastCooldown = tNow + 8000
           fastSince = 0
+          dayBump('f')
           track('too_fast')
         }
       } else fastSince = 0
@@ -872,6 +909,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     }
     if (stickOut) {
       lsSet(LS_STICKS, String(incense.sticks))
+      dayBump('s')
       track('incense_out', { sticks: incense.sticks })
       // when it lands on a milestone (the first stick always does, at 108) the milestone speaks alone
       if (!milestone) {
@@ -879,6 +917,9 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
         audio.bell(784, 0.08)
       }
     }
+    // the share peak is the stick burning out; later milestones only refresh the card
+    if (stickOut) ev.onPeak('incense')
+    else if (milestone) ev.onPeak('milestone')
 
     // mallet: (re)start the down-swing from wherever it is. The swing is short (33 ms,
     // two frames) so the visual contact lands with the sound, which is already scheduled.
@@ -1220,7 +1261,33 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
       ctx.restore()
     }
     ctx.globalAlpha = 1
+    if (snapAt && tNow >= snapAt.t) {
+      const cb = snapAt.cb
+      snapAt = null
+      cb(crop())
+    }
   }
+
+  /** The fish, mallet and floating text, cut from the canvas (about 7:5; taller on a narrow phone, the card picks its window). */
+  function crop(): HTMLCanvasElement | null {
+    const { dpr } = stage
+    const cw = canvas.width / dpr
+    const ch = canvas.height / dpr
+    const h = Math.min(ch, 3.7 * L.R)
+    const w = Math.min(cw, h * 1.4)
+    const cx = L.fx
+    const top = Math.max(0, Math.min(ch - h, L.baseY + 0.45 * L.R - h))
+    const left = Math.max(0, Math.min(cw - w, cx - w / 2))
+    const k = Math.min(dpr, 1000 / w)
+    const out = document.createElement('canvas')
+    out.width = Math.round(w * k)
+    out.height = Math.round(h * k)
+    const g = out.getContext('2d')
+    if (!g) return null
+    g.drawImage(canvas, left * dpr, top * dpr, w * dpr, h * dpr, 0, 0, out.width, out.height)
+    return out
+  }
+  let snapAt: { t: number; cb: (c: HTMLCanvasElement | null) => void } | null = null
 
   function malletPose() {
     const k = u
@@ -1263,6 +1330,11 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
   }
 
   const api: GameApi = {
+    ledger: () => ({ today: day.d === todayKey() ? today : 0, sticks: day.d === todayKey() ? day.s : 0, auto: day.d === todayKey() ? day.a : 0, fast: day.d === todayKey() ? day.f : 0 }),
+    crop,
+    snapSoon(cb, delay = 130) {
+      snapAt = { t: now() + delay, cb }
+    },
     dispose() {
       stopLoop()
       disposeCanvas()
