@@ -859,7 +859,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
 
     // the stick only burns for knocks done by hand
     const stickOut = incense.knock(!auto, tNow)
-    lsSet(LS_STICK, String(stickOut ? 0 : incense.burned))
+    lsSet(LS_STICK, String(stickOut || incense.burned >= STICK_KNOCKS ? 0 : incense.burned)) // during the swap the next stick is new
     let milestone = false
     for (const [n, key] of MILESTONES) {
       if (before < n && total >= n) {

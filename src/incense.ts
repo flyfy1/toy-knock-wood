@@ -24,6 +24,7 @@ interface Pt {
   born: number
   kv: number // knock push, px/s, decays
   s0: number // birth time of the first point of this unbroken run of smoke
+  e0: number // y it was emitted at: heights in the air field are measured from here, so a new taller stick does not jolt an old wisp
 }
 
 /** a run of smoke fades in at its head and out at its tail, so a wisp never ends in a hard bright tip */
@@ -147,7 +148,9 @@ export function makeIncense(opts: IncenseOpts) {
   let lit = 1 // ember 0..1
   let ashN = burned % 12 // knocks since the ash tip last fell
   const flecks: { x: number; y: number; vx: number; vy: number; t: number }[] = []
-  let gust: { at: number; v: number; dir: number } | null = null
+  const gusts: { at: number; v: number; dir: number; ph: number }[] = []
+  let gustN = 0
+
   let tapTimes: number[] = []
 
   const coatLeft = () => COAT * (1 - burned / STICK_KNOCKS)
@@ -191,7 +194,7 @@ export function makeIncense(opts: IncenseOpts) {
       if (lit > 0.15 && !(phase === 'swap' && t - phaseT < 0.35)) {
         const born = t - emitAcc
         if (paused) runS0 = born
-        for (let k = 0; k < 2; k++) strands[k].push({ x: ex, y: ey, born, kv: 0, s0: runS0 })
+        for (let k = 0; k < 2; k++) strands[k].push({ x: ex, y: ey, born, kv: 0, s0: runS0, e0: ey })
         paused = false
         lastBorn = born
       } else if (!paused) {
@@ -201,13 +204,16 @@ export function makeIncense(opts: IncenseOpts) {
       }
     }
     // the knock arrives with the sound ring
-    if (gust && t >= gust.at) {
+    // every knock lands (queued), but fast knocking cannot stack the push past one strong knock
+    while (gusts.length && t >= gusts[0].at) {
+      const gu = gusts.shift()!
+      const cap = 0.8 * gu.v * R
       for (const s of strands)
         for (const p of s) {
-          const h = (ey - p.y) / R
-          p.kv += gust.dir * gust.v * R * (0.35 + 0.65 * Math.sin(h * 7 + 1.1)) * smooth(-0.05, 0.3, h)
+          const h = (p.e0 - p.y) / R
+          const kv = p.kv + gu.dir * gu.v * R * (0.05 + 0.95 * Math.sin(h * 7 + gu.ph)) * smooth(-0.05, 0.3, h)
+          p.kv = Math.max(-cap, Math.min(cap, kv))
         }
-      gust = null
     }
     const drift = 0.05 * Math.sin(t * 0.21) + 0.03 * Math.sin(t * 0.37 + 2)
     const kd = Math.exp(-dt / 0.4)
@@ -216,7 +222,7 @@ export function makeIncense(opts: IncenseOpts) {
       while (s.length && t - s[0].born > LIFE) s.shift()
       const ph = k * 0.9
       for (const p of s) {
-        const h = Math.max(0, (ey - p.y) / R)
+        const h = Math.max(0, (p.e0 - p.y) / R)
         const turb = smooth(0.35, 1.25, h)
         const b = p.born
         // waves keyed to emission time travel upward with the smoke: the curls rise instead of waving in place
@@ -302,7 +308,9 @@ export function makeIncense(opts: IncenseOpts) {
     contact(cx: number, cy: number, v: number) {
       const g = geom()
       const d = Math.hypot(g.ember[0] - cx, g.ember[1] - cy) / R
-      gust = { at: t + d / 4.5, v: 2.2 * v * Math.exp(-d / 4), dir: Math.sign(g.ember[0] - cx) || -1 }
+      // mostly a shiver (the S flips with every knock), only a little net push, so steady knocking cannot blow the plume away
+      gusts.push({ at: t + d / 4.5, v: 2.2 * v * Math.exp(-d / 4), dir: Math.sign(g.ember[0] - cx) || -1, ph: 1.1 + (gustN++ % 2) * Math.PI })
+      if (gusts.length > 8) gusts.shift()
     },
     draw(c: CanvasRenderingContext2D) {
       const slide = phase === 'swap' ? 1 - easeOutBackClamp(Math.min(1, (t - phaseT) / 0.3)) : 0
@@ -421,7 +429,8 @@ export function makeIncense(opts: IncenseOpts) {
         if (s.length < 3) continue
         const fade = (p: Pt) => {
           const end = runEnds.get(p.s0) ?? Infinity
-          const f = Math.min(1, (p.born - p.s0) / FADE, (end - p.born) / FADE)
+          // once the ember is out, the last wisp thins away over 2.5 s
+          const f = Math.min(1, (p.born - p.s0) / FADE, (end - p.born) / FADE, end === Infinity ? 1 : 1 - (t - end) / 2.5)
           return Math.round(Math.max(0, f) * 8) / 8
         }
         let level = fade(s[s.length - 1])
