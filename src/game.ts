@@ -1,7 +1,7 @@
 // Knock on Wood / 电子木鱼: a lacquered wooden fish on a cushion, a padded mallet, a warm "tok".
 // Cozy rules: springs, soft shadows, small sounds. No shake / flash / hit-stop / additive particles.
 import { audio } from './engine/AudioEngine'
-import { track } from './analytics'
+import { act, track } from './analytics'
 import { list, locale, t } from './i18n'
 import { type Stage, clamp, easeOutBack, haptic, rand, runLoop, setupCanvas } from './engine/juice'
 import { STICK_KNOCKS, bakeBurner, makeIncense } from './incense'
@@ -868,6 +868,7 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     if (lsGet(LS_DAY) !== todayKey()) today = 0
     today++
     session++
+    act(auto ? 'auto_knock' : 'knock')
     if (auto) {
       autoCount++
       dayBump('a')
