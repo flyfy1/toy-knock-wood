@@ -5,6 +5,7 @@ import { act, track } from './analytics'
 import { list, locale, t } from './i18n'
 import { type Stage, clamp, easeOutBack, haptic, rand, runLoop, setupCanvas } from './engine/juice'
 import { STICK_KNOCKS, bakeBurner, makeIncense } from './incense'
+import { offer } from './share'
 
 // Dev only (frame sheets): ?seed=<n> makes every random choice repeatable.
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('seed')) {
@@ -1011,6 +1012,9 @@ export function startGame(canvas: HTMLCanvasElement, ev: GameEvents, initialWord
     if (e.button > 0) return
     e.preventDefault()
     knock(false, e.pointerType === 'mouse' ? 0.8 : clamp(0.7 + (e.pressure || 0.5) * 0.4, 0.6, 1))
+    // the brass censer (a portal to silk): it knocks like any tap, the smoke shivers; the 2nd tap may show the bubble
+    const [bx, by] = L.burner
+    if (Math.abs(e.clientX - bx) < 0.3 * L.R && e.clientY > by - 0.12 * L.R && e.clientY < by + 0.3 * L.R) offer('knock', 'incense', () => [L.burner[0] - 0.1 * L.R, L.burner[1] - 1.7 * L.R])
   }
   const onKey = (e: KeyboardEvent) => {
     // only when nothing else has focus and no overlay (About / share dialog) is open

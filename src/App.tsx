@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MoreMenu } from './components/MoreMenu'
 import { applyMeta, locale, t } from './i18n'
 import { startAnalytics, track } from './analytics'
-import { landing, live, openSheet, parseWords, sharePeak, stats, store, syncWordsToUrl, trackLanding, wordsFromUrl } from './share'
+import { arrive, landing, live, openSheet, parseWords, sharePeak, stats, store, syncWordsToUrl, trackLanding, wordsFromUrl } from './share'
 import { Hint } from './components/Hint'
 import { Tag } from './components/Tag'
 import { IconAuto, IconMallet } from './components/Icons'
@@ -90,6 +90,8 @@ export default function App() {
     } catch {
       /* ignore */
     }
+    // a portal visit (from charge's pufferfish, scratch's merit prize): a tag where a recipient's would sit
+    arrive('knock', ['top-[9.4rem]', 'bg-[#8E1F2B] text-[#F6D98B] font-medium'])
     return () => g.dispose()
   }, [initial])
 
