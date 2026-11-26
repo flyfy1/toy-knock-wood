@@ -1,0 +1,69 @@
+# Knock on Wood
+
+> A lacquered wooden fish and a mallet. Every tap is a warm wooden tok and +1 merit, or +1 of whatever you type. Counts are kept on your device. A tiny calming toy, no sign-up.
+
+Knock on Wood (电子木鱼 (zh-CN), Toca Madera (es), Touche du Bois (fr), 電子木魚 ぽくぽく (ja)) is a free browser toy at https://knock.integ.life/ by Integ Life. It opens straight into play: no sign-up, no download, no ads, no tutorial. It works with a mouse or a touchscreen on phones, tablets and computers.
+
+## How to play
+
+1. Tap or click anywhere. The mallet strikes the lacquered wooden fish, you hear a warm wooden "tok", the fish squashes and wobbles on its cushion, and "+1" floats up (功德 +1 in Chinese, Luck +1 in English).
+2. The counter at the top keeps your lifetime total and today's count. Both are stored in your browser only.
+3. Type your own lines in the box at the top, separated by commas, for example "KPI -1, Rent -1". Each knock floats one of them. They are added to the page link (?w=...), so a friend who opens your link gets the same text.
+4. Turn on auto-knock ("Outsource my merit") for one or two knocks per second. The fish will point out that merit by proxy may not count.
+5. Milestones at 18, 108 and 1,000 knocks get a deadpan comment, and 108 unlocks a bigger fish with a deeper tok. Knock faster than six times a second and the fish notices.
+
+## Facts
+
+- URL: https://knock.integ.life/
+- Price: free
+- Platforms: any modern web browser (desktop and mobile)
+- Languages: English, 简体中文 (Simplified Chinese), Español, Français and 日本語 (Japanese), picked from the browser language (default English)
+- Sound: synthesised live with the Web Audio API; vibration on Android
+- Made by: Integ Life (https://integ.life/), first published 2026-11-25
+
+## FAQ
+
+**What is an electronic wooden fish (电子木鱼)?**
+A wooden fish (muyu) is a hollow wooden percussion block struck with a mallet during Buddhist chanting. The electronic version became a Chinese internet meme: you tap it on a screen and each tap shows "功德+1" (merit +1) as a joke about relieving stress.
+
+**How do I use Knock on Wood?**
+Tap or click anywhere. The mallet strikes the wooden fish, you hear a wooden "tok" and a "+1" floats up. Your lifetime and daily totals are saved in your browser only.
+
+**Can I change the "Merit +1" text?**
+Yes. Type your own lines in the box at the top, separated by commas, for example "Luck +1, Bugs -1". They are added to the page link, so a friend who opens your link gets the same text.
+
+**Is there an auto-knock mode?**
+Yes. Turn on auto-knock for one or two taps per second. The toy will point out that outsourced merit may not count.
+
+**What is the incense stick for?**
+A stick of incense burns in a small bronze burner beside the fish. "One stick of incense" (一炷香) is an old Chinese measure of time; here one stick lasts 108 knocks done by hand. Outsourced knocks do not burn it. When it burns out, its red foot stays in the ash and a new stick is lit.
+
+**Is Knock on Wood free?**
+Yes. It is free, with no sign-up, no download and no ads. It runs in any modern browser on phones, tablets and computers.
+
+**Does it have sound and vibration?**
+Yes. The wooden "tok" is synthesised live in the browser with the Web Audio API (three wooden resonances, a strike click and a body thump), so there are no audio files to load. On Android phones every knock also gives a short tap of vibration; iPhone browsers do not support web vibration.
+
+**Which languages does it support?**
+English, 简体中文 (Simplified Chinese), Español, Français and 日本語 (Japanese). The language is picked automatically from your browser settings; any other language falls back to English.
+
+**Who made it?**
+Integ Life (integ.life). Knock on Wood is one of twelve small stress-relief toys, together with Charge Burst, Void Harvest, Glass Smash, Chain Pop, Lap Cat, Squishy Bun, Scratch That, Peel Off, Give It a Twirl, Tablecloth Trick, Smooth as Silk. More games are at games.integ.life.
+
+**Is any personal data collected?**
+No account and no personal data. At most, anonymous usage statistics (page views and play counts) are collected.
+
+## Related
+
+- [Charge Burst](https://charge.integ.life/): Hold to annoy a pufferfish until it puffs up and blows its spines off.
+- [Void Harvest](https://void.integ.life/): Your cursor is a black hole: swallow the socks, receipts, client emails and Monday. Sometimes it gives one sock back.
+- [Glass Smash](https://smash.integ.life/): Smash a pane of glass with the word you hate written on it.
+- [Chain Pop](https://pop.integ.life/): A sheet of parcel bubble wrap that never runs out. One bubble refuses to pop.
+- [Lap Cat](https://purr.integ.life/): Pet a soft, purring cat on your screen. Mind the belly.
+- [Squishy Bun](https://squish.integ.life/): Squeeze a soft mochi bun. It slowly forgives you.
+- [Scratch That](https://scratch.integ.life/): Scratch the silver off a card. Win a nap.
+- [Peel Off](https://peel.integ.life/): Peel the film off a brand-new phone. Then try to put the film down.
+- [Give It a Twirl](https://twirl.integ.life/): A new skirt on a dress form. Swipe to spin it and watch the hem fly out flat.
+- [Tablecloth Trick](https://yoink.integ.life/): Whip a silk tablecloth out from under Mum's bowls. Fast, or everything goes with it.
+- [Smooth as Silk](https://silk.integ.life/): A silk curtain at an open window. Drag it, let go, watch it fall back.
+- [Integ Games](https://games.integ.life/): more browser games
