@@ -2,6 +2,7 @@
 // The text every toy shares (names for the More menu, Share, About) lives in i18n.ts.
 
 const en = {
+  name_knock: "Knock on Wood",
   knock_reply_ph: "A word you would like knocked off",
   knock_tag: "Someone lit this for you",
   knock_tag_words: "Someone lit this for you. Every knock: {w}",
@@ -27,6 +28,7 @@ const en = {
 }
 
 const zhCN: typeof en = {
+  name_knock: "电子木鱼",
   knock_reply_ph: "写一个你想敲掉的词",
   knock_tag: "有人给你点了一炷香",
   knock_tag_words: "有人给你点了一炷香 · 每敲一下：{w}",
@@ -52,6 +54,7 @@ const zhCN: typeof en = {
 }
 
 const es: typeof en = {
+  name_knock: "Toca Madera",
   knock_reply_ph: "Una palabra que quieras quitarte de encima",
   knock_tag: "Alguien te ha encendido esto",
   knock_tag_words: "Alguien te ha encendido esto. Cada golpe: {w}",
@@ -77,6 +80,7 @@ const es: typeof en = {
 }
 
 const fr: typeof en = {
+  name_knock: "Touche du Bois",
   knock_reply_ph: "Un mot dont vous voulez être débarrassé",
   knock_tag: "Quelqu’un l’a allumé pour vous",
   knock_tag_words: "Quelqu’un l’a allumé pour vous. Chaque coup : {w}",
@@ -102,6 +106,7 @@ const fr: typeof en = {
 }
 
 const ja: typeof en = {
+  name_knock: "電子木魚 ぽくぽく",
   knock_reply_ph: "叩いて消したい言葉をひとつ",
   knock_tag: "あなたのために線香が一本",
   knock_tag_words: "あなたのために線香が一本 · 一打ちごとに：{w}",

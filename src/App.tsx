@@ -5,7 +5,8 @@ import { startAnalytics, track } from './analytics'
 import { landing, live, openSheet, parseWords, sharePeak, stats, store, syncWordsToUrl, trackLanding, wordsFromUrl } from './share'
 import { Hint } from './components/Hint'
 import { Tag } from './components/Tag'
-import { IconAuto, IconKnock, IconMallet } from './components/Icons'
+import { IconAuto, IconMallet } from './components/Icons'
+import { IconKnock } from './components/ToyIcons'
 import { startGame, type GameApi } from './game'
 
 const AUTO_STEPS = [0, 1, 2] as const
